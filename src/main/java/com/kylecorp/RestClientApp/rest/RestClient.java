@@ -1,5 +1,6 @@
 package com.kylecorp.RestClientApp.rest;
 
+
 import java.net.URI;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -25,112 +26,111 @@ import org.springframework.web.client.RestTemplate;
 
 import com.kylecorp.RestClientApp.logging.LogService;
 
+
 @SuppressWarnings("deprecation")
 public class RestClient
 {
-	private final static Logger		LOGGER			= LogService.getLogger();
-	private final static boolean	ALLOW_UNTRUSTED	= true;
-	private final static int		DEFAULT_TIMEOUT	= 60000;					// milliseconds
+    private final static Logger  LOGGER          = LogService.getLogger();
+    private final static boolean ALLOW_UNTRUSTED = true;
+    private final static int     DEFAULT_TIMEOUT = 60000;                 // milliseconds
 
-	private RestTemplate			restTemplate;
+    private RestTemplate         restTemplate;
 
-	@SuppressWarnings({ "deprecation", "resource" })
-	// Ignore deprecation warnings for now
-	public RestClient()
-	{
 
-		final ClientConnectionManager connectionManager = new ThreadSafeClientConnManager();
+    @SuppressWarnings({ "deprecation", "resource" })
+    // Ignore deprecation warnings for now
+    public RestClient()
+    {
 
-		DefaultHttpClient httpClient = new DefaultHttpClient(connectionManager);
+        final ClientConnectionManager connectionManager = new ThreadSafeClientConnManager();
 
-		httpClient.getParams().setParameter("http.socket.timeout",
-				new Integer(DEFAULT_TIMEOUT));
+        DefaultHttpClient httpClient = new DefaultHttpClient(connectionManager);
 
-		if (ALLOW_UNTRUSTED)
-		{
-			// http://stackoverflow.com/questions/1201048/allowing-java-to-use-an-untrusted-certificate-for-ssl-https-connection
-			// modified by:
-			// http://tech.chitgoks.com/2011/04/24/how-to-avoid-javax-net-ssl-sslpeerunverifiedexception-peer-not-authenticated-problem-using-apache-httpclient/
-			// The apache and Sun HTTP clients work a little differently.
-			//
-			// Normally turning off certificate checking makes the user
-			// vulnerable to a man in the middle
-			// attack. This is why by default we do not turn off certificate
-			// checking. However, if the
-			// user wishes to turn off certificate checking and make himself
-			// vulnerable to a man in the middle
-			// attack, that is the user's business.
-			final TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager()
-			{
-				public void checkClientTrusted(
-						final java.security.cert.X509Certificate[] certs,
-						final String authType)
-				{
-				}
+        httpClient.getParams().setParameter("http.socket.timeout", new Integer(DEFAULT_TIMEOUT));
 
-				public void checkServerTrusted(
-						final java.security.cert.X509Certificate[] certs,
-						final String authType)
-				{
-				}
+        if (ALLOW_UNTRUSTED)
+        {
+            // http://stackoverflow.com/questions/1201048/allowing-java-to-use-an-untrusted-certificate-for-ssl-https-connection
+            // modified by:
+            // http://tech.chitgoks.com/2011/04/24/how-to-avoid-javax-net-ssl-sslpeerunverifiedexception-peer-not-authenticated-problem-using-apache-httpclient/
+            // The apache and Sun HTTP clients work a little differently.
+            //
+            // Normally turning off certificate checking makes the user
+            // vulnerable to a man in the middle
+            // attack. This is why by default we do not turn off certificate
+            // checking. However, if the
+            // user wishes to turn off certificate checking and make himself
+            // vulnerable to a man in the middle
+            // attack, that is the user's business.
+            final TrustManager[] trustAllCerts = new TrustManager[] { new X509TrustManager()
+            {
+                public void checkClientTrusted(final java.security.cert.X509Certificate[] certs, final String authType)
+                {
+                }
 
-				public java.security.cert.X509Certificate[] getAcceptedIssuers()
-				{
-					return new X509Certificate[0];
-				}
-			} };
 
-			// Install the all-trusting trust manager
-			try
-			{
-				final SSLContext sc = SSLContext.getInstance("SSL");
-				sc.init(null, trustAllCerts, new java.security.SecureRandom());
-				final SSLSocketFactory ssf = new SSLSocketFactory(sc);
-				ssf.setHostnameVerifier(SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
-				final ClientConnectionManager ccm = httpClient
-						.getConnectionManager();
-				final SchemeRegistry sr = ccm.getSchemeRegistry();
-				sr.register(new Scheme("https", ssf, 443));
-				httpClient = new DefaultHttpClient(ccm, httpClient.getParams());
-			} catch (final Exception e)
-			{
-				LOGGER.error("Exception: ", e);
-				throw new RuntimeException("Could not trust all certificates",
-						e);
-			}
-		}
+                public void checkServerTrusted(final java.security.cert.X509Certificate[] certs, final String authType)
+                {
+                }
 
-		HttpComponentsClientHttpRequestFactory httpComponentsClientHttpRequestFactory = new HttpComponentsClientHttpRequestFactory(
-				httpClient);
-		restTemplate = new RestTemplate(httpComponentsClientHttpRequestFactory);
 
-		List<HttpMessageConverter<?>> messageConverters = new ArrayList<HttpMessageConverter<?>>();
-		messageConverters.add(new FormHttpMessageConverter());
-		messageConverters.add(new StringHttpMessageConverter());
-		messageConverters.add(new MappingJackson2HttpMessageConverter());
-		restTemplate.setMessageConverters(messageConverters);
-	}
+                public java.security.cert.X509Certificate[] getAcceptedIssuers()
+                {
+                    return new X509Certificate[0];
+                }
+            } };
 
-	public <T> T restGetOperation(final String url, final Class<T> returnClass,
-			final Object... urlVariables)
-	{
-		T returnObject = null;
-		returnObject = getRestTemplate().getForObject(url, returnClass,
-				urlVariables);
-		return returnObject;
+            // Install the all-trusting trust manager
+            try
+            {
+                final SSLContext sc = SSLContext.getInstance("SSL");
+                sc.init(null, trustAllCerts, new java.security.SecureRandom());
+                final SSLSocketFactory ssf = new SSLSocketFactory(sc);
+                ssf.setHostnameVerifier(SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
+                final ClientConnectionManager ccm = httpClient.getConnectionManager();
+                final SchemeRegistry sr = ccm.getSchemeRegistry();
+                sr.register(new Scheme("https", ssf, 443));
+                httpClient = new DefaultHttpClient(ccm, httpClient.getParams());
+            }
+            catch (final Exception e)
+            {
+                LOGGER.error("Exception: ", e);
+                throw new RuntimeException("Could not trust all certificates", e);
+            }
+        }
 
-	}
+        HttpComponentsClientHttpRequestFactory httpComponentsClientHttpRequestFactory = new HttpComponentsClientHttpRequestFactory(
+                                                                                                                                   httpClient);
+        restTemplate = new RestTemplate(httpComponentsClientHttpRequestFactory);
 
-	public <T> T restGetOperation(final URI uri, final Class<T> returnClass)
-	{
-		T returnObject = null;
-		returnObject = getRestTemplate().getForObject(uri, returnClass);
-		return returnObject;
+        List<HttpMessageConverter<?>> messageConverters = new ArrayList<HttpMessageConverter<?>>();
+        messageConverters.add(new FormHttpMessageConverter());
+        messageConverters.add(new StringHttpMessageConverter());
+        messageConverters.add(new MappingJackson2HttpMessageConverter());
+        restTemplate.setMessageConverters(messageConverters);
+    }
 
-	}
 
-	public RestTemplate getRestTemplate()
-	{
-		return restTemplate;
-	}
+    public <T> T restGetOperation(final String url, final Class<T> returnClass, final Object... urlVariables)
+    {
+        T returnObject = null;
+        returnObject = getRestTemplate().getForObject(url, returnClass, urlVariables);
+        return returnObject;
+
+    }
+
+
+    public <T> T restGetOperation(final URI uri, final Class<T> returnClass)
+    {
+        T returnObject = null;
+        returnObject = getRestTemplate().getForObject(uri, returnClass);
+        return returnObject;
+
+    }
+
+
+    public RestTemplate getRestTemplate()
+    {
+        return restTemplate;
+    }
 }
