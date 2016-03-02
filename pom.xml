@@ -19,6 +19,8 @@
 		<resources.version>2.5</resources.version>
 		<maven.compiler.version>2.4</maven.compiler.version>
 		<jython.version>2.7-b1</jython.version>
+		<logback.version>1.0.12</logback.version>
+		<appassembler.version>1.2</appassembler.version>
 	</properties>
 
 	<dependencies>
@@ -32,11 +34,6 @@
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-web</artifactId>
 			<version>${spring.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>jline</groupId>
-			<artifactId>jline</artifactId>
-			<version>2.13</version>
 		</dependency>
 		<dependency>
 			<groupId>com.google.guava</groupId>
@@ -89,12 +86,30 @@
 			<artifactId>jul-to-slf4j</artifactId>
 			<version>${slf4j.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-classic</artifactId>
+			<version>${logback.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-core</artifactId>
+			<version>${logback.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-access</artifactId>
+			<version>${logback.version}</version>
+		</dependency>
 		<!-- may not need spring-core -->
 		<dependency>
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-core</artifactId>
 			<version>${spring.version}</version>
 		</dependency>
+
 		<dependency>
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-web</artifactId>
@@ -108,6 +123,26 @@
 	</dependencies>
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>exec-maven-plugin</artifactId>
+				<version>1.1.1</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>java</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<executable>java</executable>
+					<workingDirectory>${project.build.directory}</workingDirectory>
+					<arguments>
+						<argument>-jar</argument>
+						<argument>RestClientApp-${project.version}.jar</argument>
+					</arguments>
+				</configuration>
+			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-resources-plugin</artifactId>
@@ -138,24 +173,24 @@
 					</descriptorRefs>
 					<!-- MainClass in mainfest make a executable jar -->
 					<archive>
-					  <manifest>
-						<mainClass>com.kylecorp.RestClientApp.App</mainClass>
-					  </manifest>
+						<manifest>
+							<mainClass>com.kylecorp.RestClientApp.App</mainClass>
+						</manifest>
 					</archive>
 
 				</configuration>
 				<executions>
-				  <execution>
-					<id>make-assembly</id>
-                                        <!-- bind to the packaging phase -->
-					<phase>package</phase> 
-					<goals>
-						<goal>single</goal>
-					</goals>
-				  </execution>
+					<execution>
+						<id>make-assembly</id>
+						<!-- bind to the packaging phase -->
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+					</execution>
 				</executions>
 			</plugin>
-		    <plugin>
+			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>${maven.compiler.version}</version>
@@ -163,6 +198,88 @@
 					<source>${java-version}</source>
 					<target>${java-version}</target>
 				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>net.sf.mavenjython</groupId>
+				<artifactId>jython-compile-maven-plugin</artifactId>
+				<version>1.2</version>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>jython</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>appassembler-maven-plugin</artifactId>
+				<version>${appassembler.version}</version>
+				<configuration>
+					<platforms>
+						<platform>unix</platform>
+					</platforms>
+					<programs>
+						<program>
+							<mainClass>com.kylecorp.RestClientApp.App</mainClass>
+							<name>RestClientAppShell</name>
+						</program>
+					</programs>
+					<assembleDirectory>${project.build.directory}/RestClientApp</assembleDirectory>
+					<binFileExtensions>
+						<unix>.sh</unix>
+					</binFileExtensions>
+					<repositoryLayout>flat</repositoryLayout>
+					<repositoryName>lib</repositoryName>
+					<configurationSourceDirectory>src/main/resources</configurationSourceDirectory>
+					<copyConfigurationDirectory>false</copyConfigurationDirectory>
+					<!-- <extraJvmArguments>-Xmx1024m -XX:MaxPermSize=256m</extraJvmArguments> -->
+				</configuration>
+				<executions>
+					<execution>
+						<id>assemble</id>
+						<phase>package</phase>
+						<goals>
+							<goal>assemble</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+						<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<version>1.6</version>
+				<executions>
+					<execution>
+						<id>populate_etc</id>
+						<phase>package</phase>
+						<configuration>
+							<target>
+								<copy file="${project.build.directory}/classes/logback.xml"
+									todir="${project.build.directory}/RestClientApp/etc"
+									overwrite="true" />
+							</target>
+						</configuration>
+						<goals>
+							<goal>run</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>permissions</id>
+						<phase>package</phase>
+						<configuration>
+							<target>
+								<chmod
+									file="${project.build.directory}/RestClientApp/bin/RestClientAppShell.sh"
+									perm="755" />
+							</target>
+						</configuration>
+						<goals>
+							<goal>run</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>

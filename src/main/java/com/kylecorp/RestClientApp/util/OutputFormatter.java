@@ -1,25 +1,37 @@
 package com.kylecorp.RestClientApp.util;
 
+import java.text.DecimalFormat;
+import java.util.Set;
 
 public class OutputFormatter
 {
-    public static String output(LocationWeatherInfo locationWeatherInfo)
-    {
-        StringBuilder sb = new StringBuilder(); // scoped to this stack, so not
-                                                // worried too much about thread
-                                                // safety
-        if (locationWeatherInfo != null)
-        {
-            sb.append("Weather for ").append(locationWeatherInfo.getPostalCode());
+	public static String output(LocationWeatherInfo locationWeatherInfo)
+	{
+		DecimalFormat df = new DecimalFormat("#.00");
 
-            for (LocationInfo locationInfo : locationWeatherInfo.getLocationInfoSet())
-            {
-                sb.append("\n\t").append(locationInfo.getCity()).append(", ").append(locationInfo.getRegion()).append(", ")
-                  .append(locationWeatherInfo.getCountry()).append("\t").append(locationInfo.getTemperature()).append("F")
-                  .append(" and ").append(locationInfo.getWeather());
-            }
-        }
+		StringBuffer sb = new StringBuffer();
+		if (locationWeatherInfo != null)
+		{
+			sb.append("Weather for ").append(
+					locationWeatherInfo.getPostalCode());
 
-        return sb.toString();
-    }
+			Set<LocationInfo> locationInfoSet = locationWeatherInfo
+					.getLocationInfoSet();
+			for (LocationInfo locationInfo : locationInfoSet)
+			{
+				if (locationInfoSet.size() > 1)
+				{
+					sb.append("\n\t");
+				}
+				sb.append(locationInfo.getCity()).append(", ")
+						.append(locationInfo.getRegion()).append(", ")
+						.append(locationWeatherInfo.getCountry()).append(" ")
+						.append(df.format(locationInfo.getTemperature()))
+						.append("F").append(" and ")
+						.append(locationInfo.getWeather());
+			}
+		}
+
+		return sb.toString();
+	}
 }

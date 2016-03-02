@@ -1,6 +1,5 @@
 package com.kylecorp.RestClientApp.util;
 
-
 /*
  * Copyright (c) 2002-2007, Marc Prud'hommeaux. All rights reserved.
  * 
@@ -25,182 +24,176 @@ import java.util.jar.JarFile;
 
 import jline.SimpleCompletor;
 
-
 /**
- * A Completer implementation that completes java class names. By default,
- * it scans the java class path to
- * locate
- * all the classes.
+ * A Completer implementation that completes java class names. By default, it
+ * scans the java class path to locate all the classes.
  * 
  * @author <a href="mailto:mwp1@cornell.edu">Marc Prud'hommeaux</a>
  */
 public class ClassNameCompletor extends SimpleCompletor
 {
 
-    static String[] classNames = initClassNames();
+	static String[]	classNames	= initClassNames();
 
+	/**
+	 * Complete candidates using all the classes available in the java
+	 * <em>CLASSPATH</em>.
+	 */
+	public ClassNameCompletor()
+	{
+		this(null);
+	}
 
-    /**
-     * Complete candidates using all the classes available in the
-     * java <em>CLASSPATH</em>.
-     */
-    public ClassNameCompletor()
-    {
-        this(null);
-    }
+	public ClassNameCompletor(final SimpleCompletorFilter filter)
+	{
+		super(classNames, filter);
+		setDelimiter(".");
+	}
 
+	public static String[] getClassNames()
+	{
+		return classNames;
+	}
 
-    public ClassNameCompletor(final SimpleCompletorFilter filter)
-    {
-        super(classNames, filter);
-        setDelimiter(".");
-    }
+	public static String[] initClassNames()
+	{
+		Set<URL> urls = new HashSet<URL>();
 
+		for (ClassLoader loader = ClassNameCompletor.class.getClassLoader(); loader != null; loader = loader
+				.getParent())
+		{
+			if (!(loader instanceof URLClassLoader))
+			{
+				continue;
+			}
 
-    public static String[] getClassNames()
-    {
-        return classNames;
-    }
+			urls.addAll(Arrays.asList(((URLClassLoader) loader).getURLs()));
+		}
 
+		Class<?>[] systemClasses = new Class<?>[] { String.class };
 
-    public static String[] initClassNames()
-    {
-        Set<URL> urls = new HashSet<URL>();
+		for (int i = 0; i < systemClasses.length; i++)
+		{
+			URL classURL = systemClasses[i].getResource("/"
+					+ systemClasses[i].getName().replace('.', '/') + ".class");
 
-        for (ClassLoader loader = ClassNameCompletor.class.getClassLoader(); loader != null; loader = loader.getParent())
-        {
-            if (!(loader instanceof URLClassLoader))
-            {
-                continue;
-            }
+			if (classURL != null)
+			{
+				try
+				{
+					URLConnection uc = classURL.openConnection();
 
-            urls.addAll(Arrays.asList(((URLClassLoader) loader).getURLs()));
-        }
+					if (uc instanceof JarURLConnection)
+					{
+						urls.add(((JarURLConnection) uc).getJarFileURL());
+					}
+				} catch (IOException e)
+				{
+					// KET: Kinda screwed for the Completor, Oh well.
+				}
+			}
+		}
 
-        Class<?>[] systemClasses = new Class<?>[] { String.class };
+		Set<String> classes = new HashSet<String>();
 
-        for (int i = 0; i < systemClasses.length; i++)
-        {
-            URL classURL = systemClasses[i].getResource("/" + systemClasses[i].getName().replace('.', '/') + ".class");
+		for (Iterator<URL> i = urls.iterator(); i.hasNext();)
+		{
+			URL url = i.next();
+			File file = new File(url.getFile());
 
-            if (classURL != null)
-            {
-                try
-                {
-                    URLConnection uc = classURL.openConnection();
+			if (file.isDirectory())
+			{
+				Set<String> files = getClassFiles(file.getAbsolutePath(),
+						new HashSet<String>(), file, new int[] { 200 });
+				classes.addAll(files);
 
-                    if (uc instanceof JarURLConnection)
-                    {
-                        urls.add(((JarURLConnection) uc).getJarFileURL());
-                    }
-                }
-                catch (IOException e)
-                {
-                    // KET: Kinda screwed for the Completor, Oh well.
-                }
-            }
-        }
+				continue;
+			}
 
-        Set<String> classes = new HashSet<String>();
+			if ((file == null) || !file.isFile()) // TODO: handle directories
+			{
+				continue;
+			}
 
-        for (Iterator<URL> i = urls.iterator(); i.hasNext();)
-        {
-            URL url = i.next();
-            File file = new File(url.getFile());
+			if (!file.toString().endsWith(".jar"))
+			{
+				continue;
+			}
 
-            if (file.isDirectory())
-            {
-                Set<String> files = getClassFiles(file.getAbsolutePath(), new HashSet<String>(), file, new int[] { 200 });
-                classes.addAll(files);
+			JarFile jf = null;
+			try
+			{
+				jf = new JarFile(file);
+			} catch (IOException e1)
+			{
 
-                continue;
-            }
+			}
 
-            if ((file == null) || !file.isFile()) // TODO: handle directories
-            {
-                continue;
-            }
+			if (jf != null)
+			{
+				for (Enumeration<?> e = jf.entries(); e.hasMoreElements();)
+				{
+					JarEntry entry = (JarEntry) e.nextElement();
 
-            if (!file.toString().endsWith(".jar"))
-            {
-                continue;
-            }
+					if (entry == null)
+					{
+						continue;
+					}
 
-            JarFile jf = null;
-            try
-            {
-                jf = new JarFile(file);
-            }
-            catch (IOException e1)
-            {
+					String name = entry.getName();
 
-            }
+					if (!name.endsWith(".class")) // only use class files
+					{
+						continue;
+					}
 
-            if (jf != null)
-            {
-                for (Enumeration<?> e = jf.entries(); e.hasMoreElements();)
-                {
-                    JarEntry entry = (JarEntry) e.nextElement();
+					classes.add(name);
+				}
+			}
+		}
 
-                    if (entry == null)
-                    {
-                        continue;
-                    }
+		// now filter classes by changing "/" to "." and trimming the
+		// trailing ".class"
+		Set<String> classNames = new TreeSet<String>();
 
-                    String name = entry.getName();
+		for (Iterator<String> i = classes.iterator(); i.hasNext();)
+		{
+			String name = i.next();
+			classNames.add(name.replace('/', '.').substring(0,
+					name.length() - 6));
+		}
 
-                    if (!name.endsWith(".class")) // only use class files
-                    {
-                        continue;
-                    }
+		return classNames.toArray(new String[classNames.size()]);
+	}
 
-                    classes.add(name);
-                }
-            }
-        }
+	private static Set<String> getClassFiles(String root, Set<String> holder,
+			File directory, int[] maxDirectories)
+	{
+		// we have passed the maximum number of directories to scan
+		if (maxDirectories[0]-- < 0)
+		{
+			return holder;
+		}
 
-        // now filter classes by changing "/" to "." and trimming the
-        // trailing ".class"
-        Set<String> classNames = new TreeSet<String>();
+		File[] files = directory.listFiles();
 
-        for (Iterator<String> i = classes.iterator(); i.hasNext();)
-        {
-            String name = i.next();
-            classNames.add(name.replace('/', '.').substring(0, name.length() - 6));
-        }
+		for (int i = 0; (files != null) && (i < files.length); i++)
+		{
+			String name = files[i].getAbsolutePath();
 
-        return classNames.toArray(new String[classNames.size()]);
-    }
+			if (!(name.startsWith(root)))
+			{
+				continue;
+			} else if (files[i].isDirectory())
+			{
+				getClassFiles(root, holder, files[i], maxDirectories);
+			} else if (files[i].getName().endsWith(".class"))
+			{
+				holder.add(files[i].getAbsolutePath().substring(
+						root.length() + 1));
+			}
+		}
 
-
-    private static Set<String> getClassFiles(String root, Set<String> holder, File directory, int[] maxDirectories)
-    {
-        // we have passed the maximum number of directories to scan
-        if (maxDirectories[0]-- < 0)
-        {
-            return holder;
-        }
-
-        File[] files = directory.listFiles();
-
-        for (int i = 0; (files != null) && (i < files.length); i++)
-        {
-            String name = files[i].getAbsolutePath();
-
-            if (!(name.startsWith(root)))
-            {
-                continue;
-            }
-            else if (files[i].isDirectory())
-            {
-                getClassFiles(root, holder, files[i], maxDirectories);
-            }
-            else if (files[i].getName().endsWith(".class"))
-            {
-                holder.add(files[i].getAbsolutePath().substring(root.length() + 1));
-            }
-        }
-
-        return holder;
-    }
+		return holder;
+	}
 }
