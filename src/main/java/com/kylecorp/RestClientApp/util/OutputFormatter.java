@@ -23,7 +23,7 @@ public class OutputFormatter
 				{
 					sb.append("\n\t");
 				}
-				sb.append(locationInfo.getCity()).append(", ")
+				sb.append(" ").append(locationInfo.getCity()).append(", ")
 						.append(locationInfo.getRegion()).append(", ")
 						.append(locationWeatherInfo.getCountry()).append(" ")
 						.append(df.format(locationInfo.getTemperature()))
